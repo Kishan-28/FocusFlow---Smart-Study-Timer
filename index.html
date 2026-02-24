@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FocusFlow – Smart Study Timer</title>
+
+<style>
+body{
+  margin:0;
+  font-family:Segoe UI, sans-serif;
+  background:linear-gradient(135deg,#667eea,#764ba2);
+  color:white;
+  text-align:center;
+}
+
+.container{
+  padding:30px;
+}
+
+h1{
+  margin-bottom:10px;
+}
+
+.timer-box{
+  background:white;
+  color:#333;
+  padding:20px;
+  border-radius:15px;
+  width:320px;
+  margin:20px auto;
+  box-shadow:0 8px 20px rgba(0,0,0,0.3);
+}
+
+#timer{
+  font-size:40px;
+  margin:15px 0;
+  font-weight:bold;
+}
+
+input{
+  padding:10px;
+  border-radius:8px;
+  border:none;
+  margin:5px;
+  width:80px;
+  text-align:center;
+}
+
+.task-input{
+  width:220px;
+}
+
+button{
+  padding:10px 15px;
+  margin:5px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  font-weight:bold;
+  background:#667eea;
+  color:white;
+  transition:0.3s;
+}
+
+button:hover{
+  background:#5a67d8;
+  transform:scale(1.05);
+}
+
+.task{
+  background:#f3f3f3;
+  color:black;
+  padding:12px;
+  margin:10px auto;
+  width:300px;
+  border-radius:10px;
+  text-align:left;
+  position:relative;
+  box-shadow:0 4px 8px rgba(0,0,0,0.2);
+  animation:slideIn 0.3s ease;
+}
+
+.task span:last-child{
+  position:absolute;
+  right:10px;
+  top:8px;
+  cursor:pointer;
+  font-size:18px;
+}
+
+.popup{
+  position:fixed;
+  bottom:30px;
+  left:50%;
+  transform:translateX(-50%);
+  background:#222;
+  color:white;
+  padding:15px 25px;
+  border-radius:25px;
+  display:none;
+  box-shadow:0 5px 15px rgba(0,0,0,0.4);
+  animation:fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn{
+  from{opacity:0; bottom:10px;}
+  to{opacity:1; bottom:30px;}
+}
+
+@keyframes slideIn{
+  from{opacity:0; transform:translateY(-10px);}
+  to{opacity:1; transform:translateY(0);}
+}
+
+@media(max-width:500px){
+  .timer-box{
+    width:90%;
+  }
+  .task{
+    width:90%;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+<h1>FocusFlow – Smart Study Timer</h1>
+
+<div class="timer-box">
+<h3>Set Study Time</h3>
+<input type="number" id="hours" min="0" placeholder="Hours">
+<input type="number" id="minutes" min="0" max="59" placeholder="Minutes">
+<br>
+<button onclick="setCustomTime()">Set Time</button>
+
+<div id="timer">00:25:00</div>
+
+<button onclick="startTimer()">Start</button>
+<button onclick="stopTimer()">Stop</button>
+<button onclick="resetTimer()">Reset</button>
+</div>
+
+<h3>Add Task</h3>
+<input type="text" id="taskInput" class="task-input" placeholder="Enter task">
+<button onclick="addTask()">Add Task</button>
+
+<div id="taskList"></div>
+
+<br>
+<button onclick="startVoice()">🎤 Voice Command</button>
+
+</div>
+
+<div id="popup" class="popup"></div>
+
+<script>
+let defaultTime = 1500;
+let time = defaultTime;
+let interval;
+
+function updateTimer(){
+  let hrs = Math.floor(time/3600);
+  let mins = Math.floor((time%3600)/60);
+  let secs = time%60;
+
+  document.getElementById("timer").innerText =
+    (hrs<10?"0":"")+hrs+":"+
+    (mins<10?"0":"")+mins+":"+
+    (secs<10?"0":"")+secs;
+}
+
+function setCustomTime(){
+  let hrs = parseInt(document.getElementById("hours").value)||0;
+  let mins = parseInt(document.getElementById("minutes").value)||0;
+
+  if(hrs===0 && mins===0){
+    alert("Please enter valid time");
+    return;
+  }
+
+  defaultTime = (hrs*3600)+(mins*60);
+  time = defaultTime;
+  updateTimer();
+}
+
+function startTimer(){
+  clearInterval(interval);
+  interval = setInterval(()=>{
+    if(time>0){
+      time--;
+      updateTimer();
+    }else{
+      clearInterval(interval);
+      showPopup("Study session completed");
+    }
+  },1000);
+}
+
+function stopTimer(){
+  clearInterval(interval);
+}
+
+function resetTimer(){
+  clearInterval(interval);
+  time=defaultTime;
+  updateTimer();
+}
+
+function addTask(){
+  let taskInput=document.getElementById("taskInput");
+  let taskText=taskInput.value.trim();
+
+  if(taskText===""){
+    alert("Please enter task");
+    return;
+  }
+
+  let taskDiv=document.createElement("div");
+  taskDiv.className="task";
+
+  let span=document.createElement("span");
+  span.innerText=taskText;
+
+  let cross=document.createElement("span");
+  cross.innerHTML="❌";
+  cross.onclick=function(){taskDiv.remove();};
+
+  taskDiv.appendChild(span);
+  taskDiv.appendChild(cross);
+
+  document.getElementById("taskList").appendChild(taskDiv);
+
+  showPopup(`"${taskText}" added`);
+
+  taskInput.value="";
+}
+
+function showPopup(message){
+  let popup=document.getElementById("popup");
+  popup.innerText=message;
+  popup.style.display="block";
+  setTimeout(()=>{popup.style.display="none";},3000);
+}
+
+document.addEventListener("keydown",function(e){
+  if(e.ctrlKey && e.key==="s"){
+    startTimer();
+  }
+  if(e.key==="Enter"){
+    addTask();
+  }
+});
+
+function startVoice(){
+  if(!('webkitSpeechRecognition' in window)){
+    alert("Use Google Chrome for voice feature.");
+    return;
+  }
+
+  const recognition=new webkitSpeechRecognition();
+  recognition.lang="en-US";
+  recognition.start();
+
+  recognition.onresult=function(event){
+    const command=event.results[0][0].transcript.toLowerCase();
+
+    let hours=0, minutes=0;
+
+    let hourMatch=command.match(/(\d+)\s*(hour|hours|hr|hrs)/);
+    if(hourMatch) hours=parseInt(hourMatch[1]);
+
+    let minuteMatch=command.match(/(\d+)\s*(minute|minutes|min|mins)/);
+    if(minuteMatch) minutes=parseInt(minuteMatch[1]);
+
+    if(command.includes("set")){
+      if(hours>0 || minutes>0){
+        defaultTime=(hours*3600)+(minutes*60);
+        time=defaultTime;
+        updateTimer();
+      }
+    }
+
+    if(command.includes("start")) startTimer();
+    if(command.includes("stop")) stopTimer();
+    if(command.includes("reset")) resetTimer();
+  };
+}
+
+updateTimer();
+</script>
+
+</body>
+</html>

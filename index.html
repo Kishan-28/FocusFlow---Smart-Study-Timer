@@ -151,6 +151,15 @@ button:hover{
 <br>
 <button onclick="startVoice()">🎤 Voice Command</button>
 
+<div class="guide" style="margin-top: 25px; text-align: left; background: rgba(255,255,255,0.15); padding: 20px; border-radius: 12px; font-size: 0.95em;">
+  <h3 style="margin-top: 0; color: #f8f9fa;">Voice Commands Guide</h3>
+  <ul style="padding-left: 20px; line-height: 1.6;">
+    <li><strong>Timer Controls:</strong> "Start timer", "Stop timer", "Reset timer"</li>
+    <li><strong>Set Time:</strong> "Set 25 minutes", "Set 1 hour 30 mins"</li>
+    <li><strong>Add Task:</strong> "Add task [your task name]"</li>
+  </ul>
+</div>
+
 </div>
 
 <div id="popup" class="popup"></div>
@@ -208,9 +217,9 @@ function resetTimer(){
   updateTimer();
 }
 
-function addTask(){
+function addTask(providedTask){
   let taskInput=document.getElementById("taskInput");
-  let taskText=taskInput.value.trim();
+  let taskText = (typeof providedTask === 'string' && providedTask.trim() !== "") ? providedTask.trim() : taskInput.value.trim();
 
   if(taskText===""){
     alert("Please enter task");
@@ -234,7 +243,9 @@ function addTask(){
 
   showPopup(`"${taskText}" added`);
 
-  taskInput.value="";
+  if(typeof providedTask !== 'string' || providedTask.trim() === ""){
+    taskInput.value="";
+  }
 }
 
 function showPopup(message){
@@ -253,31 +264,43 @@ document.addEventListener("keydown",function(e){
   }
 });
 
-function startVoice(){
-  if(!('webkitSpeechRecognition' in window)){
-    alert("Use Google Chrome for voice feature.");
-    return;
-  }
+let recognition;
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-  const recognition=new webkitSpeechRecognition();
-  recognition.lang="en-US";
-  recognition.start();
+if(SpeechRecognition){
+  recognition = new SpeechRecognition();
+  recognition.lang = "en-US";
+  recognition.continuous = false;
+  recognition.interimResults = false;
 
-  recognition.onresult=function(event){
-    const command=event.results[0][0].transcript.toLowerCase();
+  recognition.onstart = function() {
+    showPopup("Listening... Speak now");
+  };
+
+  recognition.onerror = function(event) {
+    if (event.error === 'not-allowed') {
+      alert("Microphone access blocked. Note: Voice transcription requires a secure connection (HTTPS) or localhost. It may not work directly from a local file without granting specific browser permissions.");
+    } else {
+      showPopup("Voice error: " + event.error);
+    }
+  };
+
+  recognition.onresult = function(event){
+    const command = event.results[0][0].transcript.toLowerCase();
+    showPopup(`Heard: "${command}"`);
 
     let hours=0, minutes=0;
 
-    let hourMatch=command.match(/(\d+)\s*(hour|hours|hr|hrs)/);
-    if(hourMatch) hours=parseInt(hourMatch[1]);
+    let hourMatch = command.match(/(\d+)\s*(hour|hours|hr|hrs)/);
+    if(hourMatch) hours = parseInt(hourMatch[1]);
 
-    let minuteMatch=command.match(/(\d+)\s*(minute|minutes|min|mins)/);
-    if(minuteMatch) minutes=parseInt(minuteMatch[1]);
+    let minuteMatch = command.match(/(\d+)\s*(minute|minutes|min|mins)/);
+    if(minuteMatch) minutes = parseInt(minuteMatch[1]);
 
     if(command.includes("set")){
       if(hours>0 || minutes>0){
-        defaultTime=(hours*3600)+(minutes*60);
-        time=defaultTime;
+        defaultTime = (hours*3600) + (minutes*60);
+        time = defaultTime;
         updateTimer();
       }
     }
@@ -285,7 +308,27 @@ function startVoice(){
     if(command.includes("start")) startTimer();
     if(command.includes("stop")) stopTimer();
     if(command.includes("reset")) resetTimer();
+    
+    if(command.includes("add task")){
+      let taskName = command.replace(/.*add task\s*/i, "").trim();
+      if(taskName){
+        addTask(taskName);
+      }
+    }
   };
+}
+
+function startVoice(){
+  if(!recognition){
+    alert("Voice recognition is not supported in this browser. Please use Chrome, Edge, or Safari.");
+    return;
+  }
+
+  try {
+    recognition.start();
+  } catch (e) {
+    showPopup("Could not start microphone.");
+  }
 }
 
 updateTimer();
